@@ -1,6 +1,14 @@
 import kotlin.reflect.KProperty
+import kotlin.reflect.full.findAnnotation
+import kotlin.reflect.full.hasAnnotation
 
-class Json0(val a: Int, val b: String)
+@Target(AnnotationTarget.PROPERTY)
+annotation class Ignore
+
+@Target(AnnotationTarget.PROPERTY)
+annotation class Name(val name: String)
+
+class Json0(@Ignore val a: Int, @Name("title") val b: String)
 
 fun main(args: Array<String>) {
     val stringBuilder = StringBuilder()
@@ -77,10 +85,11 @@ private fun StringBuilder.jsonList(target: List<*>) {
 private fun <T : Any> StringBuilder.jsonObject(target: T) {
     wrap('{', '}') {
         target::class.members.filterIsInstance<KProperty<*>>()
+            .filter { !it.hasAnnotation<Ignore>() }
             .joinTo(::comma) { // this에서 찾고 없으면 전역에서 찾음
                 //여기서 KProperty로 변환되서 옴
                 //property는 getter를 가지고있고 var이면 setter도
-                jsonValue(it.name)
+                jsonValue(it.findAnnotation<Name>()?.name ?: it.name)
                 append(":")
                 jsonValue(it.getter.call(target))
             }
