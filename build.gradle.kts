@@ -13,8 +13,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.10")
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.3.1")
     testImplementation(kotlin("test"))
 }
 
