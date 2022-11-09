@@ -27,7 +27,7 @@ fun StringBuilder.comma() {
 
 // 수신 객체 지정 람다는 Function1으로 바뀜
 // Function1::invoke(StringBuilder)
-inline fun StringBuilder.wrap(begin: Char, end: Char, block: StringBuilder.() -> Unit) {
+ fun StringBuilder.wrap(begin: Char, end: Char, block: StringBuilder.() -> Unit) {
     append(begin)
     block() // == this.block() == block(this)
     append(end)
@@ -61,7 +61,7 @@ class Test(val prop: String) {
 }
 
 // 전역 레벨 private 은 file 안에서
-private inline fun StringBuilder.jsonValue(value: Any?) {
+private  fun StringBuilder.jsonValue(value: Any?) {
     when (value) {
         null -> append("null") // 여길 타면 아래는 null 이 아니게 smart casting
         is String -> jsonString(value)
@@ -71,18 +71,18 @@ private inline fun StringBuilder.jsonValue(value: Any?) {
     }
 }
 
-private inline fun StringBuilder.jsonString(v: String) {
+private  fun StringBuilder.jsonString(v: String) {
     append(""""${v.replace("\"", "\\\"")}"""")
 }
 
-private inline fun StringBuilder.jsonList(target: List<*>) {
+private  fun StringBuilder.jsonList(target: List<*>) {
     wrap('[', ']') {
         target.joinTo(::comma) { jsonValue(it) }
     }
 }
 
 
-private inline fun <T : Any> StringBuilder.jsonObject(target: T) {
+private  fun <T : Any> StringBuilder.jsonObject(target: T) {
     wrap('{', '}') {
         target::class.members.filterIsInstance<KProperty<*>>()
             .filter { !it.hasAnnotation<Ignore>() }
@@ -96,7 +96,7 @@ private inline fun <T : Any> StringBuilder.jsonObject(target: T) {
     }
 }
 
-inline fun <T> Iterable<T>.joinTo(sep: () -> Unit, transform: (T) -> Unit) {
+ fun <T> Iterable<T>.joinTo(sep: () -> Unit, transform: (T) -> Unit) {
     forEachIndexed { count, element ->
         if (count != 0) sep();
         transform(element);
