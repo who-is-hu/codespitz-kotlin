@@ -4,36 +4,38 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KType
 import kotlin.reflect.full.createInstance
+import kotlin.reflect.full.createType
 import kotlin.reflect.full.findAnnotation
-import kotlin.reflect.full.hasAnnotation
 
-fun <T:Any?> parseJson(target: T, json: String): T? {
+fun <T: Any> parseJson(target: T, json: String): T? {
     val lexer = JsonLexer(json)
     lexer.skipWhite()
     return parseObject(lexer, target)
 }
 
 fun <T:Any> T.fromJson(json:String): T? {
-    parseJson(this, json)
+    return parseJson(this, json)
 }
 
-class JsonLexer(private val json: String){
-    private val last = json.lastIndex
+class JsonLexer(val json: String){
+    val last = json.lastIndex
     var cursor = 0
         private set
-    val curr
+    inline val curr
         get() = json[cursor]
-    fun next(){
-        if(cursor < last) ++cursor
-    }
-    fun skipWhite(){
+    // inline 안은 inline 보다 가시성이 높건 같아야함
+    // 너무 inline 만 하려하면 캡슐화가 깨지게될 수 있음
+    fun next(){ if(cursor < last) ++cursor }
+    inline fun skipWhite(){
         while (" \r\t\n".indexOf(curr) != -1 && cursor < last) next()
     }
-    fun isObjectOpen(): Boolean = curr == '{'
-    fun isObjectClose(): Boolean = curr == '}'
-    fun isComma(): Boolean = curr == ','
+    inline fun isObjectOpen(): Boolean = curr == '{'
+    inline fun isObjectClose(): Boolean = curr == '}'
+    inline fun isComma(): Boolean = curr == ','
+    inline fun isOpenArray(): Boolean = curr == '['
+    inline fun isCloseArray(): Boolean = curr == ']'
 
-    fun key(): String? {
+    inline fun key(): String? {
         val result = string() ?: return null
         skipWhite()
         if(curr != ':') return null
@@ -42,7 +44,7 @@ class JsonLexer(private val json: String){
         return result
     }
 
-    fun string(): String? {
+    inline fun string(): String? {
         if(curr != '"') return null
         next()
         val start = cursor
@@ -56,15 +58,15 @@ class JsonLexer(private val json: String){
         return result
     }
 
-    private fun number(): String? {
+    inline fun number(): String? {
         val start = cursor
         while ("-.0123456789".indexOf(curr) != -1) next()
         return if(start == cursor) null else json.substring(start,cursor)
     }
-    fun int(): Int? = number()?.toInt()
-    fun long(): Long? = number()?.toLong()
-    fun double(): Double? = number()?.toDouble()
-    fun float(): Float? = number()?.toFloat()
+    inline fun int(): Int? = number()?.toInt()
+    inline fun long(): Long? = number()?.toLong()
+    inline fun double(): Double? = number()?.toDouble()
+    inline fun float(): Float? = number()?.toFloat()
     fun boolean(): Boolean? = when {
         json.substring(cursor, cursor+4) == "true" -> {
             cursor += 4
@@ -81,6 +83,7 @@ class JsonLexer(private val json: String){
 @Target(AnnotationTarget.PROPERTY)
 annotation class Name(val name: String)
 
+// 컴파일하면 순환참조를 찾아내서 inline 에러가 남
 fun <T:Any> parseObject(lexer: JsonLexer, target: T): T? {
     if(!lexer.isObjectOpen()) return null
     lexer.next()
@@ -100,7 +103,7 @@ fun <T:Any> parseObject(lexer: JsonLexer, target: T): T? {
     return target
 }
 
-fun jsonValue(lexer: JsonLexer, type: KType): Any? {
+inline fun jsonValue(lexer: JsonLexer, type: KType): Any? {
     return when (val cls = type.classifier as? KClass<*> ?: return null){
         String::class -> lexer.string()
         Long::class -> lexer.long()
@@ -111,4 +114,18 @@ fun jsonValue(lexer: JsonLexer, type: KType): Any? {
         List::class -> parseList(lexer, type.arguments[0].type?.classifier as? KClass<*> ?: return null)
         else -> parseObject(lexer, cls.createInstance())
     }
+}
+// 컴파일하면 순환참조를 찾아내서 inline 에러가 남
+fun parseList(lexer: JsonLexer, cls: KClass<*>): List<*>?{
+    if(!lexer.isOpenArray()) return null
+    lexer.next()
+    val result = mutableListOf<Any>()
+    val type = cls.createType()
+    while(!lexer.isCloseArray()){
+        lexer.skipWhite()
+        val v = jsonValue(lexer, type) ?: return null
+        result += v
+        if(lexer.isComma()) lexer.next()
+    }
+    return result
 }
